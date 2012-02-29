@@ -1,0 +1,11 @@
+--Configuration
+
+include tp_widgets in your rc.lua with 
+	require("path/to/tp_widgets")
+
+Then you can create power widgets with
+	tp_widgets.create_power_widget([optional: update_frequency])
+and battery widgets with
+	tp_widgets.create_battery_widget([optional: update_frequency])
+
+You can handle them as standard awesome-textbox-widgets.
