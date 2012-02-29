@@ -1,10 +1,32 @@
 local io = io
 local string = string
 local math = math
+local widget = widget
+local timer = timer
 
 module("tp_widgets")
 
 local battery_path = "/sys/devices/platform/smapi/BAT0/"
+local default_text = "no tp_smapi found"
+
+function create_widget_helper(timer_func,update_freq)
+	local w = widget({ type = "textbox" })
+	w.text = timer_func()
+		
+	t = timer({ timeout = update_freq })
+	t:add_signal("timeout", function () w.text = timer_func() end)
+	t:start()
+
+	return w
+end
+
+function create_battery_widget(update_freq)
+	return create_widget_helper(get_battery_state, update_freq)
+end
+
+function create_power_widget(update_freq)
+	return create_widget_helper(get_power_state, update_freq)
+end
 
 function exec_command(command)
 	local stream = io.popen(command)
