@@ -3,11 +3,14 @@ local string = string
 local math = math
 local widget = widget
 local timer = timer
+local awful = awful
 
 module("tp_widgets")
 
 local battery_path = "/sys/devices/platform/smapi/BAT0/"
 local default_text = "no tp_smapi found"
+local default_power_update_freq = 10
+local default_battery_update_freq = 120
 
 function create_widget_helper(timer_func,update_freq)
 	local w = widget({ type = "textbox" })
@@ -21,10 +24,18 @@ function create_widget_helper(timer_func,update_freq)
 end
 
 function create_battery_widget(update_freq)
+	if update_freq == nil then
+		update_freq = default_battery_update_freq
+	end
+
 	return create_widget_helper(get_battery_state, update_freq)
 end
 
 function create_power_widget(update_freq)
+	if update_freq == nil then
+		update_freq = default_power_update_freq
+	end
+
 	return create_widget_helper(get_power_state, update_freq)
 end
 
