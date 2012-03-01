@@ -4,8 +4,11 @@ include tp_widgets in your rc.lua with
 	require("path/to/tp_widgets")
 
 Then you can create power widgets with
-	tp_widgets.create_power_widget([optional: update_frequency])
+	tp_widgets.create_power_widget([optional: use_short_format,pdate_frequency])
 and battery widgets with
-	tp_widgets.create_battery_widget([optional: update_frequency])
+	tp_widgets.create_battery_widget([optional: use_short_format, update_frequency])
+
+With the boolean option use_short_format you can chose between the default ("charging", "discharging", "ac power")
+and the short ("C", "D", "AC") format.
 
 You can handle them as standard awesome-textbox-widgets.
