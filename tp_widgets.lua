@@ -42,6 +42,12 @@ function update(widget)
 	end
 end
 
+function set_custom_update(widget,func)
+	if metasettings[widget] ~= nil then
+		metasettings[widget].custom_update = func
+	end
+end
+
 function getMetaObject(widget)
 	return metasettings[widget]
 end
@@ -81,26 +87,39 @@ end
 
 function update_battery_state(info)
 	local catcommand = "cat " .. battery_path
+	
+	if info.max_percent == nil then
+		info.max_percent = exec_command(catcommand .. "stop_charge_thresh")
+	end
 
-	local percent = exec_command(catcommand .. "remaining_percent")
-	local maxpercent = exec_command(catcommand .. "stop_charge_thresh")
+	info.percent = exec_command(catcommand .. "remaining_percent")
 	local state = exec_command(catcommand .. "state");
 	
 	local text = ""
 
 	if string.find(state,"discharging") then
 		local time = exec_command(catcommand .. "remaining_running_time")
-		local hours = math.floor(time/60)
-		local minutes = time - hours * 60
-		text  = string.format(info.discharging_format,hours,minutes)
+		info.hours = math.floor(time/60)
+		info.minutes = time - hours * 60
+		info.is_discharging = true
+		info.is_charging = false
+		text  = string.format(info.discharging_format,info.hours,info.minutes)
 
 	elseif string.find(state,"charging") then
+		info.is_discharging = false
+		info.is_charging = true
 		text = string.format(info.charging_format)
 	else
+		info.is_discharging = false
+		info.is_charging = false
 		text = string.format(info.ac_format)
 	end
 	
-	local text = text .. string.format(info.percent_format,percent,maxpercent)
+	local text = text .. string.format(info.percent_format,info.percent,info.max_percent)
+	
+	if info.custom_update ~= nil then
+		info.custom_update(info)
+	end
 
 	info.widget.text = text
 end
@@ -108,12 +127,16 @@ end
 function update_power_state(info)
 	local catcommand = "cat " .. battery_path
 
-	local powerinfo = exec_command(catcommand .. "power_now") * 1;
+	info.value = exec_command(catcommand .. "power_now") * 1;
 
-	if powerinfo >= 0 then
-		info.widget.text = string.format(info.charging_format,math.abs(powerinfo))
+	if info.value >= 0 then
+		info.widget.text = string.format(info.charging_format,math.abs(info.value))
 		return
 	end
+	
+	if info.custom_update ~= nil then
+		info.custom_update(info)
+	end
 
-	info.widget.text = string.format(info.discharging_format,math.abs(powerinfo))
+	info.widget.text = string.format(info.discharging_format,math.abs(info.value))
 end
