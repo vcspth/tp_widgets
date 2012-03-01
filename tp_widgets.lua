@@ -100,7 +100,7 @@ function update_battery_state(info)
 	if string.find(state,"discharging") then
 		local time = exec_command(catcommand .. "remaining_running_time")
 		info.hours = math.floor(time/60)
-		info.minutes = time - hours * 60
+		info.minutes = time - info.hours * 60
 		info.is_discharging = true
 		info.is_charging = false
 		text  = string.format(info.discharging_format,info.hours,info.minutes)
