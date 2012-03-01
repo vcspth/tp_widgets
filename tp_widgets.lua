@@ -33,6 +33,10 @@ power_charging_short_format = "P: --"
 
 local metasettings = {}
 
+function tp_smapi_loaded()
+    return (io.open(battery_path,"r") ~= nil)
+end
+
 local function create_widget_helper(timer_func,update_freq)
     local w = widget({ type = "textbox" })
     metasettings[w] = {}
@@ -77,7 +81,9 @@ function create_battery_widget(use_short_format, update_freq)
         metasettings[w].percent_format = battery_percent_format
     end
     
-    metasettings[w].init()
+    if tp_smapi_loaded() then
+        metasettings[w].init()
+    end
 
     return w
 end
@@ -92,8 +98,10 @@ function create_power_widget(use_short_format, update_freq)
         metasettings[w].discharging_format = power_discharging_format
         metasettings[w].charging_format = power_charging_format
     end
-
-    metasettings[w].init()
+    
+    if tp_smapi_loaded() then
+        metasettings[w].init()
+    end
 
     return w
 end
