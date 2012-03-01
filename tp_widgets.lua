@@ -4,42 +4,71 @@ local math = math
 local widget = widget
 local timer = timer
 local awful = awful
+local setmetatable = setmetatable
 
 module("tp_widgets")
 
 local battery_path = "/sys/devices/platform/smapi/BAT0/"
-local default_text = "no tp_smapi found"
-local default_power_update_freq = 10
-local default_battery_update_freq = 120
+default_text = "no tp_smapi found"
+default_power_update_freq = 10
+default_battery_update_freq = 120
 
-function create_widget_helper(timer_func,update_freq)
+battery_discharging_format = "|B:%02.f:%02.f "
+battery_charging_format = "|B: charging "
+battery_ac_format = "|B: ac power "
+battery_percent_format = "( %02.f/%02.f%% )"
+
+power_discharging_format = " |P:%6.f mW"
+power_charging_format = " |P: --"
+
+local metasettings = {}
+
+local function create_widget_helper(timer_func,update_freq)
 	local w = widget({ type = "textbox" })
-	w.text = timer_func()
-		
-	t = timer({ timeout = update_freq })
-	t:add_signal("timeout", function () w.text = timer_func() end)
-	t:start()
+	metasettings[w] = {}
+	metasettings[w].widget = w
+	metasettings[w].timer = timer({ timeout = update_freq })
+	metasettings[w].update = function() timer_func(metasettings[w]) end			
+	metasettings[w].timer:add_signal("timeout", metasettings[w].update)
+
+	metasettings[w].init = function() metasettings[w].timer:start() metasettings[w].update() end
 
 	return w
 end
 
-function create_battery_widget(update_freq)
-	if update_freq == nil then
-		update_freq = default_battery_update_freq
+function update(widget)
+	if metasettings[widget] ~= nil then
+		metasettings[widget].update()
 	end
+end
 
-	return create_widget_helper(get_battery_state, update_freq)
+function getMetaObject(widget)
+	return metasettings[widget]
+end
+
+function create_battery_widget(update_freq)
+	local w = create_widget_helper(update_battery_state, update_freq or default_battery_update_freq)
+
+	metasettings[w].discharging_format = battery_discharging_format
+	metasettings[w].charging_format = battery_charging_format
+	metasettings[w].ac_format = battery_ac_format
+	metasettings[w].percent_format = battery_percent_format
+	metasettings[w].init()
+
+	return w
 end
 
 function create_power_widget(update_freq)
-	if update_freq == nil then
-		update_freq = default_power_update_freq
-	end
+	local w = create_widget_helper(update_power_state, update_freq or default_power_update_freq)
 
-	return create_widget_helper(get_power_state, update_freq)
+	metasettings[w].discharging_format = power_discharging_format
+	metasettings[w].charging_format = power_charging_format
+	metasettings[w].init()
+
+	return w
 end
 
-function exec_command(command)
+local function exec_command(command)
 	local stream = io.popen(command)
 	if not stream then do return nil end end
 	
@@ -50,45 +79,41 @@ function exec_command(command)
 	return result
 end
 
-function get_battery_state()
+function update_battery_state(info)
 	local catcommand = "cat " .. battery_path
 
 	local percent = exec_command(catcommand .. "remaining_percent")
 	local maxpercent = exec_command(catcommand .. "stop_charge_thresh")
 	local state = exec_command(catcommand .. "state");
 	
-	local text = "|B: "
+	local text = ""
 
 	if string.find(state,"discharging") then
 		local time = exec_command(catcommand .. "remaining_running_time")
 		local hours = math.floor(time/60)
 		local minutes = time - hours * 60
-		text  = text .. string.format("%2.f",hours) .. ":" .. string.format("%2.f", minutes )
+		text  = string.format(info.discharging_format,hours,minutes)
 
 	elseif string.find(state,"charging") then
-		text = text .. "charging"
+		text = string.format(info.charging_format)
 	else
-		text = text .. "ac power"
+		text = string.format(info.ac_format)
 	end
 	
-	local percentstr = string.format("%2.f", percent)
-	local maxstr = string.format("%2.f", maxpercent)
-	local text  = text .. " ( " .. percentstr ..  "/" .. maxstr .. "% )"
+	local text = text .. string.format(info.percent_format,percent,maxpercent)
 
-	return text
+	info.widget.text = text
 end
 
-function get_power_state()
+function update_power_state(info)
 	local catcommand = "cat " .. battery_path
 
 	local powerinfo = exec_command(catcommand .. "power_now") * 1;
-	local text = " |P:"
 
 	if powerinfo >= 0 then
-		return text .. " --"
+		info.widget.text = string.format(info.charging_format,math.abs(powerinfo))
+		return
 	end
 
-	text = text .. string.format("%6.f",math.abs(powerinfo)) .. " mW"
-
-	return text
+	info.widget.text = string.format(info.discharging_format,math.abs(powerinfo))
 end
